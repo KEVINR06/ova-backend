@@ -6,9 +6,10 @@ import requests
 app = Flask(__name__)
 CORS(app)
 
+# 🔑 API KEY DESDE RENDER
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-#  CONTENIDO POR LECCIÓN
+# 📚 CONTENIDO POR LECCIÓN
 contenidos = {
 
     "leccion1": """
@@ -45,62 +46,59 @@ Tema: Algoritmos y diagramas de flujo
 """
 }
 
-#  PALABRAS VÁLIDAS
-palabras_validas = [
-    "hardware","software","informática",
-    "circuito","led","resistencia","batería",
-    "arduino","sensor","bloques",
-    "algoritmo","setup","loop","diagrama"
-]
-
 @app.route("/chat", methods=["POST"])
 def chat():
 
     try:
 
+        # 📩 DATOS RECIBIDOS
         data = request.json
 
         mensaje = data.get("mensaje", "").lower()
         leccion = data.get("leccion", "leccion1")
 
+        # 📚 CONTENIDO SEGÚN LECCIÓN
         contenido = contenidos.get(leccion, "")
 
-        #  BLOQUEO FUERA DE TEMA
-        if not any(p in mensaje for p in palabras_validas):
-
-            return jsonify({
-                "respuesta": "❌ Esa pregunta no pertenece a esta lección."
-            })
-
-        #  PROMPT EDUCATIVO
+        # 🧠 PROMPT EDUCATIVO MÁS NATURAL
         prompt = f"""
 Eres un tutor virtual de informática para estudiantes de grado 8.
 
-REGLAS:
-- SOLO responde usando la lección actual
-- NO des respuestas completas
-- Guía paso a paso
-- Explicación corta y clara
-- Máximo 5 líneas
-- Si no pertenece al tema responde:
-"Esa pregunta no pertenece a esta lección"
+OBJETIVO:
+Ayudar al estudiante a comprender la lección actual de manera amigable, educativa y conversacional.
 
-CONTENIDO:
+REGLAS:
+- Responde SOLO temas relacionados con la lección actual
+- Mantén una conversación natural
+- Puedes responder preguntas relacionadas indirectamente
+- Guía paso a paso
+- No entregues respuestas completas de evaluaciones
+- Usa ejemplos sencillos
+- Explica de forma clara y corta
+- Máximo 6 líneas
+
+Si el estudiante pregunta algo MUY fuera del tema:
+redirige amablemente la conversación hacia la lección.
+
+CONTENIDO DE LA LECCIÓN:
 {contenido}
 
-PREGUNTA:
+PREGUNTA DEL ESTUDIANTE:
 {mensaje}
 """
 
+        # 🔐 HEADERS
         headers = {
             "Authorization": f"Bearer {GROQ_API_KEY}",
             "Content-Type": "application/json"
         }
 
+        # 🚀 PETICIÓN A GROQ
         response = requests.post(
             "https://api.groq.com/openai/v1/chat/completions",
             headers=headers,
             json={
+
                 "model": "llama-3.1-8b-instant",
 
                 "messages": [
@@ -110,22 +108,24 @@ PREGUNTA:
                     }
                 ],
 
-                "temperature": 0.3,
-                "max_tokens": 120
+                "temperature": 0.5,
+                "max_tokens": 180
             }
         )
 
-        #  RESPUESTA
+        # 📥 RESPUESTA
         result = response.json()
 
         print("RESPUESTA GROQ:", result)
 
-        #  SI HAY ERROR
+        # 🚨 SI HAY ERROR
         if "choices" not in result:
+
             return jsonify({
                 "respuesta": "❌ Error en Groq"
             })
 
+        # 🤖 RESPUESTA FINAL
         respuesta = result["choices"][0]["message"]["content"]
 
         return jsonify({
